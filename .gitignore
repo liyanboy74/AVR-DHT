@@ -3,4 +3,6 @@ Release
 Project.txt
 *.cci
 *.cof
-*..workspace
+*.workspace
+*.hci
+*.fct
