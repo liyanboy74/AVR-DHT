@@ -1,4 +1,10 @@
-﻿#include "DHT.h"
+#include "dht-lib.h"
+
+//General use bit manipulating commands
+#define BitSet(		x, y)			(	x |=	 (1UL<<y)			)
+#define BitClear(	x, y)			(	x &=	(~(1UL<<y))			)
+#define BitToggle(	x, y)			(	x ^=	 (1UL<<y)			)
+#define BitCheck(	x, y)			(	x &		 (1UL<<y)	? 1 : 0	)
 
 //----- Auxiliary data ----------//
 enum DHT_Status_t __DHT_STATUS;
@@ -19,15 +25,30 @@ enum DHT_Status_t __DHT_STATUS;
 //-------------------------------//
 
 //----- Prototypes ----------------------------//
-static double ExtractTemperature(uint8_t Data3, uint8_t Data4);
-static double ExtractHumidity(uint8_t Data1, uint8_t Data2);
+static float ExtractTemperature(uint8_t Data3, uint8_t Data4);
+static float ExtractHumidity(uint8_t Data1, uint8_t Data2);
+//---------------------------------------------//
+
+//----- IO Functions -------------------------//
+void DigitalWrite(uint8_t Value)
+{
+    DHT_PORT=Value;
+}
+uint8_t DigitalRead(void)
+{
+    return DHT_PIN;
+}
+void PinMode(uint8_t Mode)
+{
+    DHT_DDR=Mode;
+}
 //---------------------------------------------//
 
 //----- Functions -----------------------------//
 //Setup sensor.
 void DHT_Setup()
 {
-	_delay_ms(__DHT_Delay_Setup);
+	delay_ms(__DHT_Delay_Setup);
 	__DHT_STATUS = DHT_Ok;
 }
 
@@ -38,7 +59,7 @@ enum DHT_Status_t DHT_GetStatus()
 }
 
 //Read raw buffer from sensor.
-enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4])
+enum DHT_Status_t DHT_ReadRaw(uint8_t *Data)
 {
 	uint8_t buffer[5] = {0, 0, 0, 0, 0};
 	uint8_t retries, i;
@@ -50,19 +71,19 @@ enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4])
 	if (__DHT_STATUS == DHT_Ok)
 	{
 		//Request data
-		DigitalWrite(DHT_Pin, Low);			//DHT_PIN = 0
-		PinMode(DHT_Pin, Output);			//DHT_PIN = Output
-		_delay_ms(__DHT_Delay_Read);
+		DigitalWrite(Low);			//DHT_PIN = 0
+		PinMode(Output);			//DHT_PIN = Output
+		delay_ms(__DHT_Delay_Read);
 
 		//Setup DHT_PIN as input with pull-up resistor so as to read data
-		DigitalWrite(DHT_Pin, High);		//DHT_PIN = 1 (Pull-up resistor)
-		PinMode(DHT_Pin, Input);			//DHT_PIN = Input
+		DigitalWrite(High);		//DHT_PIN = 1 (Pull-up resistor)
+		PinMode(Input);			//DHT_PIN = Input
 
 		//Wait for response for 20-40us
 		retries = 0;
-		while (DigitalRead(DHT_Pin))
+		while (DigitalRead())
 		{
-			_delay_us(2);
+			delay_us(2);
 			retries += 2;
 			if (retries > 60)
 			{
@@ -79,9 +100,9 @@ enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4])
 		//Response sequence began
 		//Wait for the first response to finish (low for ~80us)
 		retries = 0;
-		while (!DigitalRead(DHT_Pin))
+		while (!DigitalRead())
 		{
-			_delay_us(2);
+			delay_us(2);
 			retries += 2;
 			if (retries > 100)
 			{
@@ -91,9 +112,9 @@ enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4])
 		}
 		//Wait for the last response to finish (high for ~80us)
 		retries = 0;
-		while(DigitalRead(DHT_Pin))
+		while(DigitalRead())
 		{
-			_delay_us(2);
+			delay_us(2);
 			retries += 2;
 			if (retries > 100)
 			{
@@ -113,9 +134,9 @@ enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4])
 			{
 				//There is always a leading low level of 50 us
 				retries = 0;
-				while(!DigitalRead(DHT_Pin))
+				while(!DigitalRead())
 				{
-					_delay_us(2);
+					delay_us(2);
 					retries += 2;
 					if (retries > 70)
 					{
@@ -129,14 +150,14 @@ enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4])
 				if (__DHT_STATUS == DHT_Ok)
 				{
 					//We read data bit || 26-28us means '0' || 70us means '1'
-					_delay_us(35);							//Wait for more than 28us
-					if (DigitalRead(DHT_Pin))				//If HIGH
+					delay_us(35);							//Wait for more than 28us
+					if (DigitalRead())				//If HIGH
 						BitSet(buffer[i], j);				//bit = '1'
 
 					retries = 0;
-					while(DigitalRead(DHT_Pin))
+					while(DigitalRead())
 					{
-						_delay_us(2);
+						delay_us(2);
 						retries += 2;
 						if (retries > 100)
 						{
@@ -175,21 +196,21 @@ enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4])
 }
 
 //Read temperature in Celsius.
-enum DHT_Status_t DHT_GetTemperature(double *Temperature)
+enum DHT_Status_t DHT_GetTemperature(float *Temperature)
 {
-	double *waste = 0;
+	float *waste = 0;
 	return DHT_Read(Temperature, waste);
 }
 
 //Read humidity percentage.
-enum DHT_Status_t DHT_GetHumidity(double *Humidity)
+enum DHT_Status_t DHT_GetHumidity(float *Humidity)
 {
-	double *waste = 0;
+	float *waste = 0;
 	return DHT_Read(waste, Humidity);
 }
 
 //Read temperature and humidity.
-enum DHT_Status_t DHT_Read(double *Temperature, double *Humidity)
+enum DHT_Status_t DHT_Read(float *Temperature, float *Humidity)
 {
 	uint8_t data[4] = { 0, 0, 0, 0 };
 
@@ -214,41 +235,41 @@ enum DHT_Status_t DHT_Read(double *Temperature, double *Humidity)
 }
 
 //Convert temperature from Celsius to Fahrenheit.
-double DHT_CelsiusToFahrenheit(double Temperature)
+float DHT_CelsiusToFahrenheit(float Temperature)
 {
 	return (Temperature * 1.8 + 32);
 }
 
 //Convert temperature from Celsius to Kelvin.
-double DHT_CelsiusToKelvin(double Temperature)
+float DHT_CelsiusToKelvin(float Temperature)
 {
 	return (Temperature + 273.15);
 }
 
-//Convert temperature data to double temperature.
-static double ExtractTemperature(uint8_t Data2, uint8_t Data3)
+//Convert temperature data to float temperature.
+static float ExtractTemperature(uint8_t Data3, uint8_t Data4)
 {
-	double temp = 0.0;
+	float temp = 0.0;
 
 	#if (DHT_Type == DHT11)
-		temp = Data2;
+		temp = Data3;
 	#elif (DHT_Type == DHT22)
 		//(Integral<<8 + Decimal) / 10
-		temp = (BitCheck(Data2, 7) ? ((((Data2 & 0x7F) << 8) | Data3) / (-10.0)) : (((Data2 << 8) | Data3) / 10.0));
+		temp = (BitCheck(Data3, 7) ? ((((Data3 & 0x7F) << 8) | Data4) / (-10.0)) : (((Data3 << 8) | Data4) / 10.0));
 	#endif
 
 	return temp;
 }
 
-static double ExtractHumidity(uint8_t Data0, uint8_t Data1)
+static float ExtractHumidity(uint8_t Data1, uint8_t Data2)
 {
-	double hum = 0.0;
+	float hum = 0.0;
 
 	#if (DHT_Type == DHT11)
-		hum = Data0;
+		hum = Data1;
 	#elif (DHT_Type == DHT22)
 		//(Integral<<8 + Decimal) / 10
-		hum = ((Data0<<8) | Data1) / 10.0;
+		hum = ((Data1<<8) | Data2) / 10.0;
 	#endif
 
 	return hum;

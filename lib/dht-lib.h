@@ -10,16 +10,15 @@
 ||	Description:
 ||	This library can drive DHT11 and DHT22 sensors.
 ||
+||  Edit by Liyanboy74 for CodevisionAVR
+||  https://github.com/liyanboy74
+||
 */
 
-//------ Headers ------//
-#include <inttypes.h>
-#include <util/delay.h>
-#include <avr/io.h>
-
-#include "IO_Macros.h"
-#include "DHT_Settings.h"
-//----------------------//
+//Includes
+#include <mega16a.h>
+#include <stdint.h>
+#include <delay.h>
 
 //----- Auxiliary data -------------------//
 #define DHT11						 1
@@ -27,6 +26,19 @@
 #define DHT_ReadInterval			1500
 
 #define __DHT_Delay_Setup			2000
+
+
+#define DHT_Type	DHT11          //DHT11 or DHT22
+
+#define DHT_DDR 	DDRB.3
+#define DHT_PORT	PORTB.3
+#define DHT_PIN 	PINB.3
+
+#define Low			0
+#define High		1
+
+#define Input		0
+#define Output		1
 
 enum DHT_Status_t
 {
@@ -41,11 +53,11 @@ enum DHT_Status_t
 //----- Prototypes---------------------------//
 void DHT_Setup();
 enum DHT_Status_t DHT_GetStatus();
-enum DHT_Status_t DHT_ReadRaw(uint8_t Data[4]);
-enum DHT_Status_t DHT_GetTemperature(double *Temperature);
-enum DHT_Status_t DHT_GetHumidity(double *Humidity);
-enum DHT_Status_t DHT_Read(double *Temperature, double *Humidity);
-double DHT_CelsiusToFahrenheit(double Temperature);
-double DHT_CelsiusToKelvin(double Temperature);
+enum DHT_Status_t DHT_ReadRaw(uint8_t *Data);
+enum DHT_Status_t DHT_GetTemperature(float *Temperature);
+enum DHT_Status_t DHT_GetHumidity(float *Humidity);
+enum DHT_Status_t DHT_Read(float *Temperature, float *Humidity);
+float DHT_CelsiusToFahrenheit(float Temperature);
+float DHT_CelsiusToKelvin(float Temperature);
 //-------------------------------------------//
 #endif

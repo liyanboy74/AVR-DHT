@@ -1,0 +1,6 @@
+Debug
+Release
+Project.txt
+*.cci
+*.cof
+*..workspace
